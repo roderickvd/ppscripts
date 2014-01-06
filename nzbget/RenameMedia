@@ -1,0 +1,165 @@
+#!/bin/sh
+
+##############################################################################
+### NZBGET POST-PROCESSING SCRIPT                                          ###
+
+# Rename media files for better Sick Beard and CouchPotato Server processing.
+#
+# By default scans for season and episode numbering for series and ttid for
+# movies. If none is found, the largest media file is renamed to NZB name. Set
+# ForceRename to rename regardless. This can be used to deal with scene
+# exceptions.
+
+##############################################################################
+### OPTIONS                                                                ###
+
+# Directory allowed to rename files in.
+#AllowedDir=/volume1/download/dst
+
+# Category label for TV shows.
+#Category.TV=tv
+
+# Category label for movies.
+#Category.Movies=movies
+
+# Force renaming to NZB name (yes, no).
+#ForceRename=no
+
+### NZBGET POST-PROCESSING SCRIPT                                          ###
+##############################################################################
+
+# Tested on Synology DSM 4.3-3810 Update 3 (BusyBox v1.16.1)
+
+# INSTALLATION INSTRUCTIONS:
+#
+#  1. Place script in ppscripts directory,
+#       e.g. /usr/local/ppscripts/RenameMedia
+#
+#  2. Make script executable:
+#       chmod a+x /usr/local/ppscripts/RenameMedia
+#
+#  3. Restart NZBGet
+#
+#  4. NZBGet Settings > RenameMedia: set AllowedDir to DestDir (for safety),
+#       e.g. /volume1/download/dst
+#
+#  5. NZBGet Settings > RenameMedia: set Category.TV and Category.Movies labels,
+#       e.g. Category.TV=tv
+#            Category.Movies=movies
+#
+#  6. NZBGet Settings > Post-Processing Scripts: move RenameMedia after DeleteSamples.py,
+#       e.g. DeleteSamples.py, RenameMedia, nzbToMedia*.py, Email.py, Logger.py
+#
+#  7. NZBGet Settings > Categories: set RenameMedia as DefScript for tv and movie categories,
+#       e.g. RenameMedia, nzbToMedia/nzbToSickBeard.py
+#
+#  NZBGet will now execute RenameMedia for tv and movie NZBs added from this point onwards.
+#  Manually change the PP-Parameters for any tv NZBs that were already queued.
+
+# CHANGELOG:
+#
+#  2014/01/01
+#   * [FIX] Extensions with a digit (e.g. mp4) were not handled correctly
+#   * [ADD] Support all extensions regardless of length
+#   * [CHANGE] Minor refactoring
+#
+#  2013/12/24
+#   * [ADD] Rename movies with missing tt numbers
+#   * [ADD] TVCategory and MoviesCategory settings
+#   * [ADD] Support all three-lettered file extensions
+#   * [ADD] Support force renaming (useful for scene exceptions)
+#   * [CHANGE] AllowedDir must now be a full path
+#   * [CHANGE] Rename the largest media file, not all media files in random order
+#   * [CHANGE] Minor regexp tweaks
+#   * [CHANGE] Renamed to RenameMedia
+#
+#  2013/12/08
+#   * [FIX] Typo prevented AllowedDir to work with non-default settings
+#   * [ADD] Strip year from NZB name
+#   * [CHANGE] AllowedDir error message now includes directories for debugging
+
+# Defaults -- users should override them in the NZBGet GUI
+ALLOWED_DIR=$NZBPO_ALLOWEDDIR
+if [ "$ALLOWED_DIR" == "" ]; then
+    ALLOWED_DIR="/volume1/download/dst"
+    echo "[WARNING] AllowedDir not configured, using default: $ALLOWED_DIR"
+fi
+TV_CATEGORY=$NZBPO_CATEGORY_TV
+if [ "$TV_CATEGORY" == "" ]; then
+    TV_CATEGORY="tv"
+    echo "[WARNING] Category.TV not configured, using default: $TV_CATEGORY"
+fi
+MOVIES_CATEGORY=$NZBPO_CATEGORY_MOVIES
+if [ "$MOVIES_CATEGORY" == "" ]; then
+    MOVIES_CATEGORY="movies"
+    echo "[WARNING] Category.Movie not configured, using default: $MOVIES_CATEGORY"
+fi
+FORCE_RENAME=$NZBPO_FORCERENAME
+if [ "$FORCE_RENAME" == "" ]; then
+    FORCE_RENAME="no"
+    echo "[WARNING] ForceRename not configured, using default: $FORCE_RENAME"
+fi
+
+# Sanity checks: require NZB post-processing directory and name from NZBGet
+NZB_DIRECTORY=$NZBPP_DIRECTORY
+if [ "$NZB_DIRECTORY" == "" ]; then
+    echo "[ERROR] Empty directory name, skipping."
+    exit 95
+fi
+NZB_NAME=$NZBPP_NZBNAME
+if [ "$NZB_NAME" == "" ]; then
+    echo "[ERROR] Empty NZB name, skipping."
+    exit 95
+fi
+
+# Sanity check: disallow post-processing directory to be root or the working directory
+if [ "$NZB_DIRECTORY" == "." -o "$NZB_DIRECTORY" == "/" ]; then
+    echo "[ERROR] Illegal directory name, skipping."
+    exit 95
+fi
+
+# Sanity check: require post-processing directory to contain AllowedDir
+if [ `echo "$NZB_DIRECTORY" | grep "^$ALLOWED_DIR" | wc -l` == "0" ]; then
+    echo "[ERROR] Directory $NZB_DIRECTORY not in allowed $ALLOWED_DIR, skipping."
+    exit 95
+fi
+
+# Find the largest file, which we assume to be the media file
+# NOTE: the regexps are a bit verbose so they work on DSM's BusyBox
+du -a "$NZB_DIRECTORY/" | grep -i -e '\.[a-z0-9][a-z0-9]*$' | sort -g | tail -n 1 | sed 's/^[0-9][0-9]*[[:space:]]*//' | while read LARGEST_FILE
+do
+    EXTENSION=`echo "$LARGEST_FILE" | tail -c 4`
+
+    if [ "$NZBPP_CATEGORY" == "$TV_CATEGORY" ]; then
+        if [ "$FORCE_RENAME" == "yes" -o `echo "$LARGEST_FILE" | grep -i -e "S[0-9][0-9]*E[0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "0" ]; then
+            # Do not force rename complete season downloads
+            if [ "$FORCE_RENAME" == "no" -o `find $NZB_DIRECTORY -regex ".*[sS][0-9][0-9]*[eE][0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "1" ]; then
+                # Strip year from NZB name to ensure Sick Beard will recognize the TV show
+                NEW_NAME=`echo $NZB_NAME | sed 's/([0-9][0-9][0-9][0-9])//g' | sed 's/[[:space:]][[:space:]]/ /g' | sed 's/\.\./\./g'`
+                echo "[INFO] Renaming TV show $LARGEST_FILE to $NEW_NAME.$EXTENSION"
+                mv "$LARGEST_FILE" "$NZB_DIRECTORY/$NEW_NAME.$EXTENSION"
+                RESULT=$?
+                if ! [ "$RESULT" == 0 ]; then
+                    echo "[ERROR] Error $RESULT"
+                    exit 94
+                fi
+            fi
+        fi
+
+    elif [ "$NZBPP_CATEGORY" == "$MOVIES_CATEGORY" ]; then
+        if [ "$FORCE_RENAME" == "yes" -o `echo "$LARGEST_FILE" | grep -i -e "tt[0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "0" ]; then
+            NEW_NAME=$NZB_NAME
+            echo "[INFO] Renaming movie $LARGEST_FILE to $NEW_NAME.$EXTENSION"
+            mv "$LARGEST_FILE" "$NZB_DIRECTORY/$NEW_NAME.$EXTENSION"
+            RESULT=$?
+            if ! [ "$RESULT" == 0 ]; then
+                echo "[ERROR] Error $RESULT"
+                exit 94
+            fi
+        fi
+
+    fi
+
+done
+
+exit 93
