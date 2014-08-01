@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # rename_subs.sh - Rename .en.srt and .nl.srt to .srt files
-# Tested on Synology DSM 4.3-3810 Update 3 (BusyBox v1.16.1)
+# Tested on Synology DSM 5.0 (BusyBox v1.16.1)
 
 # INSTALLATION INSTRUCTIONS:
 #
@@ -16,9 +16,30 @@ DIRECTORY=/volume1/video
 # Permissions to set SRT files to
 PERMS=666
 
-# Step 1: Remove English subtitles if they have a Dutch counterpart,
+# Regular expressions are verbose on purpose so they work in BusyBox.
+
+# Step 1: Replace three-letter language codes with two-letter codes.
+# Keep the main track only (i.e. without number suffix)
+find "$DIRECTORY" -follow -regex ".*\.[eE][nN][gG]\.[sS][rR][tT]$" | while read ENG_SUB
+do
+    EN_SUB=`echo "$ENG_SUB" | sed 's/\.eng\.srt$/\.en\.srt/I'`
+    mv "$ENG_SUB" "$EN_SUB"
+done
+find "$DIRECTORY" -follow -regex ".*\.[dD][uU][tT]\.[sS][rR][tT]$" | while read DUT_SUB
+do
+    NL_SUB=`echo "$DUT_SUB" | sed 's/\.dut\.srt$/\.nl\.srt/I'`
+    mv "$DUT_SUB" "$NL_SUB"
+done
+
+# Step 1a: Remove all other subtitles with a three-letter language code, main track or not.
+find "$DIRECTORY" -follow -regex ".*\.[a-zA-Z][a-zA-Z][a-zA-Z][\.[0-9]*]*\.[sS][rR][tT]$" | while read REMOVE_SUB
+do
+    rm "$REMOVE_SUB"
+done
+
+# Step 2: Remove English subtitles if they have a Dutch counterpart,
 # otherwise rename them into place and fix permissions
-find "$DIRECTORY" -follow -iname \*.en.srt | while read EN_SUB
+find "$DIRECTORY" -follow -regex ".*\.[eE][nN]\.[sS][rR][tT]$" | while read EN_SUB
 do
     NL_SUB=`echo "$EN_SUB" | sed 's/\.en\.srt$/\.nl\.srt/I'`  
     STRIPPED_SUB=`echo "$EN_SUB" | sed 's/\.en\.srt$/\.srt/I'`  
@@ -29,12 +50,12 @@ do
     fi
 done
 
-# Step 2: Rename Dutch subtitles into place
-find "$DIRECTORY" -follow -iname \*.nl.srt | while read NL_SUB
+# Step 3: Rename Dutch subtitles into place
+find "$DIRECTORY" -follow -regex ".*\.[nN][lL]\.[sS][rR][tT]$" | while read NL_SUB
 do
     STRIPPED_SUB=`echo "$NL_SUB" | sed 's/\.nl\.srt$/\.srt/I'` 
     mv "$NL_SUB" "$STRIPPED_SUB"
 done
 
-# Step 3: Fix permissions
+# Step 4: Fix permissions
 find "$DIRECTORY" -follow -iname \*.srt -exec chmod $PERMS {} \;
