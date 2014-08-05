@@ -31,7 +31,7 @@ do
     mv "$DUT_SUB" "$NL_SUB"
 done
 
-# Step 1a: Remove all other subtitles with a three-letter language code, main track or not.
+# Step 1a: Remove all other subtitles with a three-letter language code.
 find "$DIRECTORY" -follow -regex ".*\.[a-zA-Z][a-zA-Z][a-zA-Z][\.[0-9]*]*\.[sS][rR][tT]$" | while read REMOVE_SUB
 do
     rm "$REMOVE_SUB"
@@ -50,11 +50,16 @@ do
     fi
 done
 
-# Step 3: Rename Dutch subtitles into place
+# Step 3: Rename Dutch subtitles into place unless the subtitle already exists.
+# The latter may be the case if nzbToMedia extracted a single subtitle from the source.
 find "$DIRECTORY" -follow -regex ".*\.[nN][lL]\.[sS][rR][tT]$" | while read NL_SUB
 do
     STRIPPED_SUB=`echo "$NL_SUB" | sed 's/\.nl\.srt$/\.srt/I'` 
-    mv "$NL_SUB" "$STRIPPED_SUB"
+    if [ -e "$STRIPPED_SUB" ]; then
+        rm "$NL_SUB"
+    else
+        mv "$NL_SUB" "$STRIPPED_SUB"
+    fi
 done
 
 # Step 4: Fix permissions
