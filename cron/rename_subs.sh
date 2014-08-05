@@ -18,6 +18,9 @@ PERMS=666
 
 # Regular expressions are verbose on purpose so they work in BusyBox.
 
+# Step 0: Remove all empty subtitles.
+find "$DIRECTORY" -follow -iname \*.srt -size 0 -delete
+
 # Step 1: Replace three-letter language codes with two-letter codes.
 # Keep the main track only (i.e. without number suffix)
 find "$DIRECTORY" -follow -regex ".*\.[eE][nN][gG]\.[sS][rR][tT]$" | while read ENG_SUB
