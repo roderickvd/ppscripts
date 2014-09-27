@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+
+##############################################################################
+### NZBGET POST-PROCESSING SCRIPT                                          ###
+
+# Calls synoindex after a successful NzbDrone rename.
+
+##############################################################################
+### OPTIONS                                                                ###
+
+# Full URL to NzbDrone.
+#url=http://localhost:8989
+
+# NzbDrone API key.
+#apikey=
+
+### NZBGET POST-PROCESSING SCRIPT                                          ###
+##############################################################################
+
+# INSTALLATION INSTRUCTIONS:
+#
+#  1. Place script in ppscripts directory,
+#       e.g. /usr/local/ppscripts/NzbDroneSynoIndex
+#
+#  2. Make script executable:
+#       chmod a+x /usr/local/ppscripts/NzbDroneSynoIndex
+#
+#  3. Restart NZBGet
+#
+#  4. NZBGet Settings > NzbDroneSynoIndex: set url and apikey
+#
+#  5. NZBGet Settings > Extension Scripts: move NzbDroneSynoIndex after nzbToNzbDrone.py,
+#       e.g. DeleteSamples.py, nzbToNzbDrone.py, NzbDroneSynoIndex
+#
+#  6. NZBGet Settings > Categories: set NzbDroneSynoIndex as DefScript for tv category,
+#       e.g. nzbToMedia/nzbToNzbDrone.py, NzbDroneSynoIndex
+#
+
+import json
+import subprocess
+import urllib
+import urllib2
+import os
+import sys
+
+url = os.environ['NZBPO_URL']
+apikey = os.environ['NZBPO_APIKEY']
+
+synoindex = '/usr/syno/bin/synoindex'
+endpoint = '/api/history'
+params = urllib.urlencode({'sortKey': 'date', 'page': 1, 'pageSize': 1, 'sortDir': 'desc'})
+
+request = urllib2.Request(url + endpoint + '?' + params)
+request.add_header("X-Api-Key", apikey)
+response = urllib2.urlopen(request)
+
+data = json.loads(response.read())
+try:
+  file_path = data["records"][0]["data"]["importedPath"]
+  dirname = os.path.dirname(os.path.dirname(file_path)) # handle "abc/season x" et al
+  result = subprocess.call([synoindex, "-A", dirname])
+  result = result + subprocess.call([synoindex, "-a", file_path])
+except: pass
+
+if result == 0:
+  sys.exit(93)
+else:
+  sys.exit(94)
+
