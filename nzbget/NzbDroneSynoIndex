@@ -4,7 +4,6 @@
 ### NZBGET POST-PROCESSING SCRIPT                                          ###
 
 # Calls synoindex after a successful NzbDrone rename.
-# This requires NZBGet 13+ and Python 2.7.
 
 ##############################################################################
 ### OPTIONS                                                                ###
@@ -44,7 +43,11 @@ import urllib2
 import os
 import sys
 
-status = os.environ['NZBPP_TOTALSTATUS']
+try:
+  status = os.environ['NZBPP_TOTALSTATUS']
+except:
+  status = 'SUCCESS'
+
 if status != 'SUCCESS':
   sys.exit(95)
 
