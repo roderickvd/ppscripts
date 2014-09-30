@@ -4,6 +4,7 @@
 ### NZBGET POST-PROCESSING SCRIPT                                          ###
 
 # Calls synoindex after a successful NzbDrone rename.
+# This requires Completed Download Handling to be disabled!
 
 ##############################################################################
 ### OPTIONS                                                                ###
@@ -35,6 +36,8 @@
 #  6. NZBGet Settings > Categories: set NzbDroneSynoIndex as DefScript for tv category,
 #       e.g. nzbToMedia/nzbToNzbDrone.py, NzbDroneSynoIndex
 #
+#  7. NzbDrone > Settings > Download Client > Completed Download Handling > Enable: No
+#
 
 import json
 import subprocess
@@ -63,6 +66,8 @@ request.add_header("X-Api-Key", apikey)
 response = urllib2.urlopen(request)
 
 data = json.loads(response.read())
+result = 0
+
 try:
   file_path = data["records"][0]["data"]["importedPath"]
   dirname = os.path.dirname(os.path.dirname(file_path)) # handle "abc/season x" et al
