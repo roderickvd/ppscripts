@@ -133,7 +133,7 @@ do
     if [ "$NZBPP_CATEGORY" == "$TV_CATEGORY" ]; then
         if [ "$FORCE_RENAME" == "yes" -o `echo "$LARGEST_FILE" | grep -i -e "S[0-9][0-9]*E[0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "0" ]; then
             # Do not force rename complete season downloads
-            if [ "$FORCE_RENAME" == "no" -o `find $NZB_DIRECTORY -regex ".*[sS][0-9][0-9]*[eE][0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "1" ]; then
+            if [ "$FORCE_RENAME" == "no" -o `find "$NZB_DIRECTORY" -regex ".*[sS][0-9][0-9]*[eE][0-9][0-9]*.*\.$EXTENSION$" | wc -l` == "1" ]; then
                 # Strip year from NZB name to ensure Sick Beard will recognize the TV show
                 NEW_NAME=`echo $NZB_NAME | sed 's/([0-9][0-9][0-9][0-9])//g' | sed 's/[[:space:]][[:space:]]/ /g' | sed 's/\.\./\./g'`
                 echo "[INFO] Renaming TV show $LARGEST_FILE to $NEW_NAME.$EXTENSION"
