@@ -3,7 +3,8 @@
 ##############################################################################
 ### NZBGET POST-PROCESSING SCRIPT                                          ###
 
-# Rename media files for better Sick Beard and CouchPotato Server processing.
+# Rename media files for better Sonarr, Sick Beard and CouchPotato Server 
+# processing.
 #
 # By default scans for season and episode numbering for series and ttid for
 # movies. If none is found, the largest media file is renamed to NZB name. Set
