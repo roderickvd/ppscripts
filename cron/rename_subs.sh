@@ -11,12 +11,18 @@
 #  4. Optionally: schedule script to run using Task Scheduler or cron
 
 # Directory to scan for SRT files (will follow symbolic links)
-DIRECTORY=/volume1/video
+DEFAULT_DIRECTORY=/volume1/video
 
 # Permissions to set SRT files to
 PERMS=666
 
 # Regular expressions are verbose on purpose so they work in BusyBox.
+
+# Use a specific directory if specified or the default directory otherwise.
+DIRECTORY=`dirname "$1"`
+if [ "$DIRECTORY" == "." ]; then
+	DIRECTORY=$DEFAULT_DIRECTORY
+fi
 
 # Step 0: Remove all empty subtitles.
 find "$DIRECTORY" -follow -iname \*.srt -size 0 -delete
